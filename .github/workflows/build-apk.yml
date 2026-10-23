@@ -25,15 +25,26 @@ jobs:
       - name: Create blank Expo project (latest SDK)
         run: npx --yes create-expo-app@latest app --template blank --no-install
 
-      - name: Add App.js, name and package
+      - name: Add App.js, icon, name and package
         run: |
           cp src/App.js app/App.js
+          mkdir -p app/assets
+          curl -fsSL -o app/assets/icon.png "https://drive.usercontent.google.com/download?id=1ASSc14s70BP5yG43vDke6gqPOQhHQRDz&export=download"
+          curl -fsSL -o app/assets/adaptive-icon.png "https://drive.usercontent.google.com/download?id=1Rk_Qdi026sxqvt7ElPTmmhyXHEcklrFt&export=download"
           cd app
           node -e "
             const fs = require('fs');
             const c = JSON.parse(fs.readFileSync('app.json', 'utf8'));
             c.expo.name = 'Мессенджер';
-            c.expo.android = { ...(c.expo.android || {}), package: 'com.messenger.duo' };
+            c.expo.icon = './assets/icon.png';
+            c.expo.android = {
+              ...(c.expo.android || {}),
+              package: 'com.messenger.duo',
+              adaptiveIcon: {
+                foregroundImage: './assets/adaptive-icon.png',
+                backgroundColor: '#B4C6DC'
+              }
+            };
             fs.writeFileSync('app.json', JSON.stringify(c, null, 2));
           "
 
