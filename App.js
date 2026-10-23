@@ -5,6 +5,7 @@ import {
   BackHandler, ActivityIndicator, Modal, Switch, useColorScheme, AppState,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
@@ -410,12 +411,21 @@ function Message({ m, mine, seen, open, onOpen, onClose, onReact, onMedia, loadi
 }
 
 // ---------- Приложение ----------
-export default function App() {
+export default function Root() {
+  return (
+    <SafeAreaProvider>
+      <App />
+    </SafeAreaProvider>
+  );
+}
+
+function App() {
+  const ins = useSafeAreaInsets();
   const sys = useColorScheme();
   const [themePref, setThemePref] = useState('system'); // light | dark | system
   const [pushOn, setPushOn] = useState(true);
   const T = THEMES[themePref === 'system' ? (sys === 'dark' ? 'dark' : 'light') : themePref];
-  const s = useMemo(() => makeStyles(T), [T]);
+  const s = useMemo(() => makeStyles(T, ins), [T, ins.top, ins.bottom]);
 
   const [booting, setBooting] = useState(true);
   const [user, setUser] = useState(null); // { uid, email, login, name, nick, idToken, refreshToken, exp }
@@ -1129,7 +1139,7 @@ export default function App() {
           ))}
         </ScrollView>
         {sendingMedia ? <Text style={s.sendingNote}>{sendingMedia}</Text> : null}
-        <View style={s.inputWrap}>
+        <View style={[s.inputWrap, kb && { marginBottom: 8 }]}>
           <Goo onPress={sendMedia} style={s.clipBtn} depth={0.82}>
             {sendingMedia ? <ActivityIndicator color={T.text} size="small" /> : <Text style={s.clipText}>📎</Text>}
           </Goo>
@@ -1236,7 +1246,7 @@ export default function App() {
       </KeyboardAvoidingView>
 
       {/* Просмотр фото и видео */}
-      <Modal visible={!!viewer} transparent animationType="fade" onRequestClose={() => setViewer(null)}>
+      <Modal visible={!!viewer} transparent statusBarTranslucent navigationBarTranslucent animationType="fade" onRequestClose={() => setViewer(null)}>
         <Pressable style={s.viewer} onPress={() => setViewer(null)}>
           {viewer && viewer.img ? (
             <Image source={{ uri: 'data:image/jpeg;base64,' + viewer.img }} style={{ width: W, height: H * 0.85 }} resizeMode="contain" />
@@ -1247,7 +1257,7 @@ export default function App() {
       </Modal>
 
       {/* Редактирование профиля */}
-      <Modal visible={editOpen} transparent animationType="slide" onRequestClose={() => setEditOpen(false)}>
+      <Modal visible={editOpen} transparent statusBarTranslucent navigationBarTranslucent animationType="slide" onRequestClose={() => setEditOpen(false)}>
         <View style={s.sheetBack}>
           <ScrollView contentContainerStyle={s.sheet} keyboardShouldPersistTaps="handled">
             <Text style={s.sheetTitle}>Профиль</Text>
@@ -1291,12 +1301,14 @@ export default function App() {
   );
 }
 
-function makeStyles(T) {
+function makeStyles(T, ins = { top: 0, bottom: 0 }) {
+  const TOP = Math.max(ins.top, 24);
+  const BOT = Math.max(ins.bottom, 0);
   const lift = { shadowColor: '#0b1a2b', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 12, elevation: 6 };
   const edge = { borderWidth: 1, borderColor: T.edge, borderBottomColor: T.edgeLow };
   return StyleSheet.create({
     root: { flex: 1 },
-    top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 48, paddingHorizontal: 18, paddingBottom: 4 },
+    top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: TOP + 8, paddingHorizontal: 18, paddingBottom: 4 },
     topTitle: { color: '#fff', fontSize: 24, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.25)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
     avatarBase: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
     status: { color: '#fff', textAlign: 'center', fontSize: 12, paddingHorizontal: 16, paddingTop: 4 },
@@ -1323,7 +1335,7 @@ function makeStyles(T) {
     findRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: T.card, borderRadius: 26, paddingLeft: 16, paddingRight: 5, height: 50, marginBottom: 14, ...lift, ...edge },
     findInput: { flex: 1, fontSize: 15, color: T.text },
 
-    chatHeader: { flexDirection: 'row', alignItems: 'center', paddingTop: 42, paddingBottom: 8, paddingHorizontal: 10, backgroundColor: T.header, borderBottomWidth: 1, borderBottomColor: T.edgeLow },
+    chatHeader: { flexDirection: 'row', alignItems: 'center', paddingTop: TOP + 4, paddingBottom: 8, paddingHorizontal: 10, backgroundColor: T.header, borderBottomWidth: 1, borderBottomColor: T.edgeLow },
     backBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
     backText: { fontSize: 32, color: T.text, marginTop: -4 },
     chatName: { fontSize: 15, fontWeight: '800', color: T.text },
@@ -1345,7 +1357,7 @@ function makeStyles(T) {
     pickEmoji: { fontSize: 24 },
 
     sendingNote: { color: '#fff', fontSize: 12, textAlign: 'center', paddingBottom: 4 },
-    inputWrap: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: T.card, borderRadius: 22, marginHorizontal: 10, marginBottom: 10, paddingHorizontal: 4, paddingVertical: 4, minHeight: 44, ...lift, ...edge },
+    inputWrap: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: T.card, borderRadius: 22, marginHorizontal: 10, marginBottom: BOT + 8, paddingHorizontal: 4, paddingVertical: 4, minHeight: 44, ...lift, ...edge },
     input: { flex: 1, fontSize: 15, color: T.text, marginHorizontal: 6, paddingVertical: 8, maxHeight: 110 },
     clipBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: T.soft },
     clipText: { fontSize: 17 },
@@ -1354,7 +1366,7 @@ function makeStyles(T) {
     sendBtnSm: { width: 36, height: 36, borderRadius: 18, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
     sendTextSm: { color: T.onAccent, fontSize: 18, fontWeight: '700' },
 
-    tabBarWrap: { alignItems: 'center', paddingBottom: 18, paddingTop: 4 },
+    tabBarWrap: { alignItems: 'center', paddingBottom: BOT + 8, paddingTop: 4 },
     tabBar: { flexDirection: 'row', backgroundColor: T.tabBar, borderRadius: 26, padding: 4, ...lift, ...edge },
     indicator: { position: 'absolute', left: 4, top: 4, height: 38, borderRadius: 20, backgroundColor: T.accent },
     tabItem: { height: 38, alignItems: 'center', justifyContent: 'center' },
@@ -1365,8 +1377,8 @@ function makeStyles(T) {
     viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', alignItems: 'center', justifyContent: 'center' },
     viewerClose: { color: 'rgba(255,255,255,0.6)', fontSize: 12, position: 'absolute', bottom: 40 },
 
-    sheetBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-    sheet: { backgroundColor: T.dark ? '#22242d' : '#fbf6ea', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 36 },
+    sheetBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end', paddingTop: TOP + 8 },
+    sheet: { backgroundColor: T.dark ? '#22242d' : '#fbf6ea', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: BOT + 24 },
     sheetTitle: { fontSize: 20, fontWeight: '800', color: T.text, marginBottom: 14 },
     sheetInput: { backgroundColor: T.soft, borderRadius: 14, height: 44, paddingHorizontal: 14, fontSize: 15, color: T.text, marginTop: 6 },
     sheetBtn: { flex: 1, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
