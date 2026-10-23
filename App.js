@@ -231,7 +231,10 @@ const TABS = ['Главная', 'Чат', 'Настройки'];
 const EMOJIS = ['❤️', '👍', '😂', '🔥', '😮'];
 const W = Dimensions.get('window').width;
 const H = Dimensions.get('window').height;
-const TAB_W = Math.min(104, Math.floor((W - 56) / 3));
+const PLUS = 46;
+const TAB_W = Math.min(100, Math.floor((W - 24 - PLUS - 10 - 8) / 3));
+const BAR_W = TAB_W * 3 + 8;
+const ROW_W = BAR_W + 10 + PLUS;
 const MEDIA_W = Math.min(230, W * 0.6);
 const MEDIA_H = 280;
 
@@ -467,6 +470,33 @@ function App() {
   const [chat, setChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [findLogin, setFindLogin] = useState('');
+  const [finding, setFinding] = useState(false);
+  const fo = useRef(new Animated.Value(0)).current; // 0 — панель, 1 — поиск
+  const goo = useRef(new Animated.Value(1)).current;
+  const findRef = useRef(null);
+  const openFind = () => {
+    if (finding) return;
+    setFinding(true);
+    goo.setValue(1);
+    Animated.parallel([
+      Animated.timing(fo, { toValue: 1, duration: 950, easing: VISC, useNativeDriver: false }),
+      Animated.sequence([
+        Animated.timing(goo, { toValue: 1.18, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.spring(goo, { toValue: 1, stiffness: 140, damping: 9, mass: 1, useNativeDriver: false }),
+      ]),
+    ]).start(() => { try { findRef.current && findRef.current.focus(); } catch (e) {} });
+  };
+  const closeFind = () => {
+    try { findRef.current && findRef.current.blur(); } catch (e) {}
+    goo.setValue(1);
+    Animated.parallel([
+      Animated.timing(fo, { toValue: 0, duration: 900, easing: VISC, useNativeDriver: false }),
+      Animated.sequence([
+        Animated.timing(goo, { toValue: 1.14, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+        Animated.spring(goo, { toValue: 1, stiffness: 140, damping: 9, mass: 1, useNativeDriver: false }),
+      ]),
+    ]).start(() => setFinding(false));
+  };
   const [text, setText] = useState('');
   const [picker, setPicker] = useState(null);
   const [kb, setKb] = useState(false);
@@ -496,11 +526,12 @@ function App() {
     const h = BackHandler.addEventListener('hardwareBackPress', () => {
       if (viewer) { setViewer(null); return true; }
       if (editOpen) { setEditOpen(false); return true; }
+      if (finding) { closeFind(); return true; }
       if (userRef.current && tab !== 'Главная') { go('Главная'); return true; }
       return false;
     });
     return () => h.remove();
-  }, [tab, viewer, editOpen]);
+  }, [tab, viewer, editOpen, finding]);
 
   // ----- Сессия и настройки -----
   const saveSession = async (u) => {
@@ -775,6 +806,7 @@ function App() {
         c = unpack(await db(FS + '/chats/' + id + '?currentDocument.exists=false', { method: 'PATCH', body: JSON.stringify({ fields: fields(data) }) }));
       }
       setFindLogin('');
+      fo.setValue(0); setFinding(false);
       openChat(c);
       loadChats();
     } catch (e) {
@@ -1094,21 +1126,6 @@ function App() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4 }} keyboardShouldPersistTaps="handled">
         <Text style={s.hello}>Привет, {shown(me) || '…'}</Text>
         <Text style={s.helloSub}>{chats.length ? 'Ваши переписки' : 'Начните первую переписку'}</Text>
-        <View style={s.findRow}>
-          <TextInput
-            style={s.findInput}
-            placeholder="Логин друга"
-            placeholderTextColor={T.ph}
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={findLogin}
-            onChangeText={setFindLogin}
-            onSubmitEditing={startChat}
-          />
-          <Goo onPress={busy ? undefined : startChat} style={s.sendBtn} depth={0.82}>
-            {busy ? <ActivityIndicator color={T.onAccent} /> : <Text style={s.sendText}>+</Text>}
-          </Goo>
-        </View>
         {chats.map((c) => {
           const o = otherOf(c);
           const fresh = unread(c);
@@ -1278,16 +1295,67 @@ function App() {
           {tab === 'Главная' ? renderHome() : tab === 'Чат' ? renderChat() : renderSettings()}
         </View>
 
-        {!kb && !inChat ? (
+        {(!kb || finding) && !inChat ? (
           <View style={s.tabBarWrap}>
-            <View style={s.tabBar}>
-              <Animated.View style={[s.indicator, { width: TAB_W, transform: [{ translateX: ix }, { scaleX: stretch }] }]} />
-              {TABS.map((t) => (
-                <Goo key={t} onPress={() => go(t)} style={[s.tabItem, { width: TAB_W }]} depth={0.9}>
-                  <Text style={[s.tabText, tab === t && s.tabTextActive]}>{t}</Text>
-                  {t === 'Главная' && totalUnread > 0 && tab !== 'Главная' ? <View style={s.tabDot} /> : null}
+            <View style={{ width: ROW_W, height: PLUS, flexDirection: 'row', alignItems: 'center' }}>
+              <Animated.View
+                pointerEvents={finding ? 'none' : 'auto'}
+                style={{
+                  opacity: fo.interpolate({ inputRange: [0, 0.75, 1], outputRange: [1, 0.6, 0] }),
+                  transform: [
+                    { translateX: fo.interpolate({ inputRange: [0, 1], outputRange: [0, -(BAR_W + 40)] }) },
+                    { scaleX: fo.interpolate({ inputRange: [0, 0.35, 0.7, 1], outputRange: [1, 0.86, 0.62, 0.4] }) },
+                    { scaleY: fo.interpolate({ inputRange: [0, 0.35, 0.7, 1], outputRange: [1, 1.12, 0.9, 0.7] }) },
+                  ],
+                }}
+              >
+                <View style={s.tabBar}>
+                  <Animated.View style={[s.indicator, { width: TAB_W, transform: [{ translateX: ix }, { scaleX: stretch }] }]} />
+                  {TABS.map((t) => (
+                    <Goo key={t} onPress={() => go(t)} style={[s.tabItem, { width: TAB_W }]} depth={0.9}>
+                      <Text style={[s.tabText, tab === t && s.tabTextActive]}>{t}</Text>
+                      {t === 'Главная' && totalUnread > 0 && tab !== 'Главная' ? <View style={s.tabDot} /> : null}
+                    </Goo>
+                  ))}
+                </View>
+              </Animated.View>
+              <Animated.View
+                style={[
+                  s.plusWrap,
+                  {
+                    width: fo.interpolate({ inputRange: [0, 1], outputRange: [PLUS, ROW_W] }),
+                    borderRadius: PLUS / 2,
+                    transform: [{ scaleY: goo.interpolate({ inputRange: [1, 1.2], outputRange: [1, 0.86] }) }, { scaleX: goo }],
+                  },
+                ]}
+              >
+                {finding ? (
+                  <Animated.View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', opacity: fo.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0, 0, 1] }) }}>
+                    <Pressable onPress={closeFind} hitSlop={10} style={s.findClose}>
+                      <Text style={s.findCloseText}>×</Text>
+                    </Pressable>
+                    <TextInput
+                      ref={findRef}
+                      style={s.findInput}
+                      placeholder="Найти Кирилла"
+                      placeholderTextColor={T.ph}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      value={findLogin}
+                      onChangeText={setFindLogin}
+                      onSubmitEditing={startChat}
+                      returnKeyType="search"
+                    />
+                  </Animated.View>
+                ) : <View style={{ flex: 1 }} />}
+                <Goo onPress={busy ? undefined : finding ? startChat : openFind} style={s.plusBtn} depth={0.82}>
+                  {busy ? <ActivityIndicator color={T.onAccent} /> : (
+                    <Animated.Text style={[s.sendText, { transform: [{ rotate: fo.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }]}>
+                      {finding ? '→' : '+'}
+                    </Animated.Text>
+                  )}
                 </Goo>
-              ))}
+              </Animated.View>
             </View>
           </View>
         ) : null}
@@ -1381,7 +1449,11 @@ function makeStyles(T, ins = { top: 0, bottom: 0 }) {
     segTextOn: { color: T.onAccent },
 
     findRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: T.card, borderRadius: 26, paddingLeft: 16, paddingRight: 5, height: 50, marginBottom: 14, ...lift, ...edge },
-    findInput: { flex: 1, fontSize: 15, color: T.text },
+    findInput: { flex: 1, fontSize: 15, color: T.text, paddingVertical: 0, height: PLUS },
+    plusWrap: { position: 'absolute', right: 0, top: 0, height: PLUS, flexDirection: 'row', alignItems: 'center', backgroundColor: T.tabBar, overflow: 'hidden', ...lift, ...edge },
+    plusBtn: { width: PLUS - 6, height: PLUS - 6, borderRadius: (PLUS - 6) / 2, margin: 3, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
+    findClose: { width: 34, height: PLUS, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
+    findCloseText: { fontSize: 22, color: T.tabText, fontWeight: '600' },
 
     chatHeader: { flexDirection: 'row', alignItems: 'center', paddingTop: TOP + 4, paddingBottom: 8, paddingHorizontal: 10, backgroundColor: T.header, borderBottomWidth: 1, borderBottomColor: T.edgeLow },
     backBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
@@ -1407,44 +1479,5 @@ function makeStyles(T, ins = { top: 0, bottom: 0 }) {
     sendingNote: { color: '#fff', fontSize: 12, textAlign: 'center', paddingBottom: 4 },
     inputWrap: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: T.card, borderRadius: 22, marginHorizontal: 10, marginBottom: BOT + 8, paddingHorizontal: 4, paddingVertical: 4, minHeight: 44, ...lift, ...edge },
     input: { flex: 1, fontSize: 15, color: T.text, marginHorizontal: 6, paddingVertical: 8, maxHeight: 110 },
-    clipBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: T.soft },
-    clipText: { fontSize: 17 },
-    sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
-    sendText: { color: T.onAccent, fontSize: 20, fontWeight: '700' },
-    sendBtnSm: { width: 36, height: 36, borderRadius: 18, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
-    sendTextSm: { color: T.onAccent, fontSize: 18, fontWeight: '700' },
-
-    tabBarWrap: { alignItems: 'center', paddingBottom: BOT + 8, paddingTop: 4 },
-    tabBar: { flexDirection: 'row', backgroundColor: T.tabBar, borderRadius: 26, padding: 4, ...lift, ...edge },
-    indicator: { position: 'absolute', left: 4, top: 4, height: 38, borderRadius: 20, backgroundColor: T.accent },
-    tabItem: { height: 38, alignItems: 'center', justifyContent: 'center' },
-    tabText: { fontSize: 13, color: T.tabText, fontWeight: '700' },
-    tabTextActive: { color: T.onAccent },
-    tabDot: { position: 'absolute', top: 7, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: '#2f6fd6' },
-
-    viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', alignItems: 'center', justifyContent: 'center' },
-    viewerClose: { color: 'rgba(255,255,255,0.6)', fontSize: 12, position: 'absolute', bottom: 40 },
-
-    sheetBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end', paddingTop: TOP + 8 },
-    sheet: { backgroundColor: T.dark ? '#22242d' : '#fbf6ea', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: BOT + 24 },
-    sheetTitle: { fontSize: 20, fontWeight: '800', color: T.text, marginBottom: 14 },
-    sheetInput: { backgroundColor: T.soft, borderRadius: 14, height: 44, paddingHorizontal: 14, fontSize: 15, color: T.text, marginTop: 6 },
-    sheetBtn: { flex: 1, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-    sheetBtnText: { fontSize: 15, fontWeight: '700' },
-    smallBtn: { backgroundColor: T.soft, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 7 },
-    smallBtnText: { color: T.text, fontSize: 13, fontWeight: '600' },
-    colorRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
-    colorDot: { width: 32, height: 32, borderRadius: 16, marginRight: 10, marginBottom: 8 },
-    colorDotOn: { borderWidth: 3, borderColor: T.dark ? '#fff' : '#1c1c1e' },
-
-    loginBox: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 26, paddingVertical: 40 },
-    loginTitle: { color: '#fff', fontSize: 28, fontWeight: '800', marginBottom: 16, textShadowColor: 'rgba(0,0,0,0.25)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
-    setupLabel: { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 8 },
-    loginInput: { backgroundColor: T.card, borderRadius: 24, height: 50, paddingHorizontal: 18, fontSize: 16, color: T.text, ...lift, ...edge },
-    loginHint: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 8 },
-    loginErr: { color: '#fff', marginTop: 10, fontSize: 13, fontWeight: '700' },
-    loginBtn: { backgroundColor: T.accent, borderRadius: 24, height: 50, alignItems: 'center', justifyContent: 'center', marginTop: 14, ...lift },
-    loginBtnText: { color: T.onAccent, fontSize: 16, fontWeight: '700' },
-    switchText: { color: '#fff', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
-  });
-}
+    clipBtn
+Предпросмотр обрезан.
