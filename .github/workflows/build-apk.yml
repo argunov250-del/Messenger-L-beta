@@ -1,0 +1,62 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Create blank Expo project (latest SDK)
+        run: npx --yes create-expo-app@latest app --template blank --no-install
+
+      - name: Add App.js, name and package
+        run: |
+          cp src/App.js app/App.js
+          cd app
+          node -e "
+            const fs = require('fs');
+            const c = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+            c.expo.name = 'Мессенджер';
+            c.expo.android = { ...(c.expo.android || {}), package: 'com.messenger.duo' };
+            fs.writeFileSync('app.json', JSON.stringify(c, null, 2));
+          "
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm install
+
+      - name: Prebuild Android project
+        working-directory: app
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build release APK
+        working-directory: app/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: messenger-apk
+          path: app/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          
