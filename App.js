@@ -135,11 +135,16 @@ async function getPushToken() {
   const pid = projectId();
   if (!pid) return '';
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
+    await Notifications.setNotificationChannelAsync('messages', {
       name: 'Сообщения',
       importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 200, 120, 200],
+      vibrationPattern: [0, 250, 150, 250],
+      sound: 'default',
+      enableVibrate: true,
+      showBadge: true,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     });
+    try { await Notifications.deleteNotificationChannelAsync('default'); } catch (e) {}
   }
   let { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') status = (await Notifications.requestPermissionsAsync()).status;
@@ -149,14 +154,27 @@ async function getPushToken() {
 }
 
 async function pushTo(token, title, body, data) {
-  if (!token) return;
+  if (!token) return null;
   try {
-    await fetch('https://exp.host/--/api/v2/push/send', {
+    const r = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ to: token, title, body, data, sound: 'default', channelId: 'default', priority: 'high' }),
+      body: JSON.stringify({ to: token, title, body, data, sound: 'default', channelId: 'messages', priority: 'high', ttl: 86400 }),
     });
-  } catch (e) {}
+    return await r.json();
+  } catch (e) { return { error: String(e) }; }
+}
+
+async function pushReceipt(id) {
+  try {
+    const r = await fetch('https://exp.host/--/api/v2/push/getReceipts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ ids: [id] }),
+    });
+    const j = await r.json();
+    return (j && j.data && j.data[id]) || null;
+  } catch (e) { return null; }
 }
 
 // ---------- Темы ----------
@@ -424,6 +442,7 @@ function App() {
   const sys = useColorScheme();
   const [themePref, setThemePref] = useState('system'); // light | dark | system
   const [pushOn, setPushOn] = useState(true);
+  const [pushDiag, setPushDiag] = useState('');
   const T = THEMES[themePref === 'system' ? (sys === 'dark' ? 'dark' : 'light') : themePref];
   const s = useMemo(() => makeStyles(T, ins), [T, ins.top, ins.bottom]);
 
@@ -962,6 +981,31 @@ function App() {
   };
 
   const setTheme = (v) => { setThemePref(v); savePrefs({ theme: v, push: pushOn }); };
+  const testPush = async () => {
+    const lines = [];
+    const say = () => setPushDiag(lines.join('\n'));
+    try {
+      lines.push('Project ID: ' + (projectId() ? 'есть' : 'НЕТ')); say();
+      const perm = await Notifications.getPermissionsAsync();
+      lines.push('Разрешение: ' + perm.status); say();
+      let t = '';
+      try { t = await getPushToken(); } catch (e) { lines.push('Ошибка токена: ' + (e && e.message ? e.message : String(e))); say(); return; }
+      lines.push('Токен: ' + (t ? t.slice(0, 30) + '…' : 'НЕТ')); say();
+      if (!t) return;
+      if (t !== (me && me.pushToken)) { await patchUser({ pushToken: t }); setMe((p) => ({ ...p, pushToken: t })); lines.push('Токен сохранён в профиле'); say(); }
+      lines.push('Сверни приложение — через 5 с придёт тест'); say();
+      await new Promise((r) => setTimeout(r, 5000));
+      const res = await pushTo(t, 'Тест', 'Уведомления работают', {});
+      const d = res && res.data;
+      const one = Array.isArray(d) ? d[0] : d;
+      lines.push('Expo: ' + (one ? one.status + (one.message ? ' — ' + one.message : '') : JSON.stringify(res))); say();
+      if (one && one.id) {
+        await new Promise((r) => setTimeout(r, 6000));
+        const rc = await pushReceipt(one.id);
+        lines.push('Доставка: ' + (rc ? rc.status + (rc.message ? ' — ' + rc.message : '') + (rc.details && rc.details.error ? ' (' + rc.details.error + ')' : '') : 'ещё нет квитанции')); say();
+      }
+    } catch (e) { lines.push('Ошибка: ' + (e && e.message ? e.message : String(e))); say(); }
+  };
   const setPush = (v) => { setPushOn(v); savePrefs({ theme: themePref, push: v }); };
 
   // ----- Загрузка -----
@@ -1199,6 +1243,10 @@ function App() {
             </View>
             <Switch value={pushOn} onValueChange={setPush} />
           </View>
+          <Goo onPress={testPush} style={[s.bigBtn, { marginTop: 12 }]} depth={0.94}>
+            <Text style={s.bigBtnText}>Проверить уведомления</Text>
+          </Goo>
+          {pushDiag ? <Text selectable style={[s.cardLabel, { marginTop: 10 }]}>{pushDiag}</Text> : null}
         </View>
 
         <Goo onPress={logout} style={s.bigBtn} depth={0.94}>
