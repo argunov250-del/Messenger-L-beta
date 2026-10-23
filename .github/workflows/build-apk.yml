@@ -50,7 +50,9 @@ jobs:
 
       - name: Install dependencies
         working-directory: app
-        run: npm install
+        run: |
+          npm install
+          npx expo install @react-native-async-storage/async-storage expo-image-picker expo-image-manipulator
 
       - name: Prebuild Android project
         working-directory: app
