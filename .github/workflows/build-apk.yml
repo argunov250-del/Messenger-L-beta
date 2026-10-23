@@ -61,7 +61,7 @@ jobs:
         working-directory: app
         run: |
           npm install
-          npx expo install @react-native-async-storage/async-storage expo-image-picker expo-image-manipulator expo-file-system expo-video expo-notifications expo-constants
+          npx expo install @react-native-async-storage/async-storage expo-image-picker expo-image-manipulator expo-file-system expo-video expo-notifications expo-constants react-native-safe-area-context
 
       - name: Prebuild Android project
         working-directory: app
