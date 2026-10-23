@@ -20,6 +20,7 @@ const colorAt = (t) => {
 const TABS = ['Главная', 'Чат', 'Проекты'];
 const EMOJIS = ['❤️', '👍', '😂', '🔥', '😮'];
 const W = Dimensions.get('window').width;
+const BAR_W = W - 32;
 const TAB_W = Math.min(112, Math.floor((W - 56) / 3));
 
 // ---------- Кнопка-жидкость ----------
@@ -188,6 +189,9 @@ export default function App() {
 
   const ix = useRef(new Animated.Value(0)).current;
   const stretch = useRef(new Animated.Value(1)).current;
+  const squeeze = useRef(new Animated.Value(1)).current;
+  const fly = useRef(new Animated.Value(0)).current;
+  const [flying, setFlying] = useState('');
 
   useEffect(() => {
     const a = Keyboard.addListener('keyboardDidShow', () => setKb(true));
@@ -233,10 +237,26 @@ export default function App() {
     return () => clearInterval(timer);
   }, [name]);
 
+  // Отправка: поле резко сужается (удар), потом густо расправляется,
+  // а из него вытягивается капля и поднимается к чату
+  const launch = (msg) => {
+    setFlying(msg);
+    fly.setValue(0);
+    squeeze.setValue(1);
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(squeeze, { toValue: 0.78, duration: 70, easing: Easing.linear, useNativeDriver: true }),
+        Animated.timing(squeeze, { toValue: 1, duration: 1000, easing: VISC, useNativeDriver: true }),
+      ]),
+      Animated.timing(fly, { toValue: 1, duration: 1000, easing: Easing.bezier(0.3, 0, 0.2, 1), useNativeDriver: true }),
+    ]).start((r) => { if (r.finished) setFlying(''); });
+  };
+
   const send = async () => {
     const t = text.trim();
     if (!t) return;
     setText('');
+    launch(t);
     try {
       const res = await fetch(DOC, {
         method: 'POST',
@@ -385,18 +405,53 @@ export default function App() {
         </View>
 
         {tab === 'Чат' ? (
-          <View style={s.inputWrap}>
-            <TextInput
-              style={s.input}
-              placeholder="Сообщение для друга"
-              placeholderTextColor="#8a8470"
-              value={text}
-              onChangeText={setText}
-              onSubmitEditing={send}
+          <View style={s.inputOuter}>
+            <Animated.View
+              pointerEvents="none"
+              style={[s.neck, {
+                opacity: fly.interpolate({ inputRange: [0, 0.03, 0.55, 0.62, 1], outputRange: [0, 1, 1, 0, 0] }),
+                transform: [
+                  { translateY: fly.interpolate({ inputRange: [0, 0.35, 0.6, 1], outputRange: [33, 0, 33, 33] }) },
+                  { scaleX: fly.interpolate({ inputRange: [0, 0.35, 0.6, 1], outputRange: [1, 0.5, 0.2, 0.2] }) },
+                  { scaleY: fly.interpolate({ inputRange: [0, 0.35, 0.6, 1], outputRange: [0.05, 1, 0.05, 0.05] }) },
+                ],
+              }]}
             />
-            <Goo onPress={send} style={s.sendBtn} depth={0.82}>
-              <Text style={s.sendText}>↑</Text>
-            </Goo>
+            <Animated.View
+              style={[s.inputWrap, {
+                transform: [
+                  { translateX: squeeze.interpolate({ inputRange: [0.78, 1], outputRange: [BAR_W * 0.11, 0] }) },
+                  { scaleX: squeeze },
+                ],
+              }]}
+            >
+              <TextInput
+                style={s.input}
+                placeholder="Сообщение для друга"
+                placeholderTextColor="#8a8470"
+                value={text}
+                onChangeText={setText}
+                onSubmitEditing={send}
+              />
+              <Goo onPress={send} style={s.sendBtn} depth={0.82}>
+                <Text style={s.sendText}>↑</Text>
+              </Goo>
+            </Animated.View>
+            {flying ? (
+              <Animated.View
+                pointerEvents="none"
+                style={[s.drop, {
+                  opacity: fly.interpolate({ inputRange: [0, 0.06, 0.75, 1], outputRange: [0, 1, 1, 0] }),
+                  transform: [
+                    { translateY: fly.interpolate({ inputRange: [0, 1], outputRange: [0, -64] }) },
+                    { scaleX: fly.interpolate({ inputRange: [0, 0.35, 1], outputRange: [0.45, 0.85, 1] }) },
+                    { scaleY: fly.interpolate({ inputRange: [0, 0.35, 1], outputRange: [0.5, 1.25, 1] }) },
+                  ],
+                }]}
+              >
+                <Text style={s.bubbleText} numberOfLines={2}>{flying}</Text>
+              </Animated.View>
+            ) : null}
           </View>
         ) : null}
 
@@ -464,7 +519,10 @@ const s = StyleSheet.create({
   pickBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   pickEmoji: { fontSize: 26 },
 
-  inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,248,230,0.94)', borderRadius: 32, marginHorizontal: 16, marginBottom: 12, paddingLeft: 20, paddingRight: 7, height: 62, ...lift, ...edge },
+  inputOuter: { marginHorizontal: 16, marginBottom: 12 },
+  neck: { position: 'absolute', right: 24, bottom: 56, width: 14, height: 70, borderRadius: 7, backgroundColor: 'rgba(255,248,230,0.94)' },
+  drop: { position: 'absolute', right: 8, bottom: 56, maxWidth: '70%', backgroundColor: 'rgba(255,248,230,0.97)', borderRadius: 24, paddingVertical: 13, paddingHorizontal: 16, shadowColor: '#0b1a2b', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 12 },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,248,230,0.94)', borderRadius: 32, paddingLeft: 20, paddingRight: 7, height: 62, ...lift, ...edge },
   input: { flex: 1, fontSize: 17, color: '#222' },
   sendBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#1c1c1e', alignItems: 'center', justifyContent: 'center', ...lift, shadowOffset: { width: 0, height: 5 }, shadowRadius: 8, elevation: 6 },
   sendText: { color: '#fff', fontSize: 22, fontWeight: '700' },
