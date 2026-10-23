@@ -26,8 +26,12 @@ jobs:
         run: npx --yes create-expo-app@latest app --template blank --no-install
 
       - name: Add App.js, icon, name and package
+        env:
+          EXPO_PROJECT_ID: ${{ secrets.EXPO_PROJECT_ID }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           cp src/App.js app/App.js
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json; fi
           mkdir -p app/assets
           curl -fsSL -o app/assets/icon.png "https://drive.usercontent.google.com/download?id=1ASSc14s70BP5yG43vDke6gqPOQhHQRDz&export=download"
           curl -fsSL -o app/assets/adaptive-icon.png "https://drive.usercontent.google.com/download?id=1Rk_Qdi026sxqvt7ElPTmmhyXHEcklrFt&export=download"
@@ -45,6 +49,11 @@ jobs:
                 backgroundColor: '#B4C6DC'
               }
             };
+            c.expo.userInterfaceStyle = 'automatic';
+            c.expo.plugins = [...(c.expo.plugins || []), 'expo-notifications', 'expo-video'];
+            const pid = process.env.EXPO_PROJECT_ID;
+            if (pid) c.expo.extra = { ...(c.expo.extra || {}), eas: { projectId: pid } };
+            if (fs.existsSync('google-services.json')) c.expo.android.googleServicesFile = './google-services.json';
             fs.writeFileSync('app.json', JSON.stringify(c, null, 2));
           "
 
@@ -52,7 +61,7 @@ jobs:
         working-directory: app
         run: |
           npm install
-          npx expo install @react-native-async-storage/async-storage expo-image-picker expo-image-manipulator
+          npx expo install @react-native-async-storage/async-storage expo-image-picker expo-image-manipulator expo-file-system expo-video expo-notifications expo-constants
 
       - name: Prebuild Android project
         working-directory: app
@@ -67,6 +76,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: messenger-apk
+          name: messenger-v5-apk
           path: app/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
