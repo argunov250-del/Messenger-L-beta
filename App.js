@@ -1479,5 +1479,44 @@ function makeStyles(T, ins = { top: 0, bottom: 0 }) {
     sendingNote: { color: '#fff', fontSize: 12, textAlign: 'center', paddingBottom: 4 },
     inputWrap: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: T.card, borderRadius: 22, marginHorizontal: 10, marginBottom: BOT + 8, paddingHorizontal: 4, paddingVertical: 4, minHeight: 44, ...lift, ...edge },
     input: { flex: 1, fontSize: 15, color: T.text, marginHorizontal: 6, paddingVertical: 8, maxHeight: 110 },
-    clipBtn
-Предпросмотр обрезан.
+        clipBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: T.soft },
+    clipText: { fontSize: 17 },
+    sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
+    sendText: { color: T.onAccent, fontSize: 20, fontWeight: '700' },
+    sendBtnSm: { width: 36, height: 36, borderRadius: 18, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
+    sendTextSm: { color: T.onAccent, fontSize: 18, fontWeight: '700' },
+
+    tabBarWrap: { alignItems: 'center', paddingBottom: BOT + 8, paddingTop: 4 },
+    tabBar: { flexDirection: 'row', width: BAR_W, height: PLUS, alignItems: 'center', backgroundColor: T.tabBar, borderRadius: PLUS / 2, padding: 4, ...lift, ...edge },
+    indicator: { position: 'absolute', left: 4, top: 4, height: 38, borderRadius: 20, backgroundColor: T.accent },
+    tabItem: { height: 38, alignItems: 'center', justifyContent: 'center' },
+    tabText: { fontSize: 13, color: T.tabText, fontWeight: '700' },
+    tabTextActive: { color: T.onAccent },
+    tabDot: { position: 'absolute', top: 7, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: '#2f6fd6' },
+
+    viewer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', alignItems: 'center', justifyContent: 'center' },
+    viewerClose: { color: 'rgba(255,255,255,0.6)', fontSize: 12, position: 'absolute', bottom: 40 },
+
+    sheetBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end', paddingTop: TOP + 8 },
+    sheet: { backgroundColor: T.dark ? '#22242d' : '#fbf6ea', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: BOT + 24 },
+    sheetTitle: { fontSize: 20, fontWeight: '800', color: T.text, marginBottom: 14 },
+    sheetInput: { backgroundColor: T.soft, borderRadius: 14, height: 44, paddingHorizontal: 14, fontSize: 15, color: T.text, marginTop: 6 },
+    sheetBtn: { flex: 1, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    sheetBtnText: { fontSize: 15, fontWeight: '700' },
+    smallBtn: { backgroundColor: T.soft, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 7 },
+    smallBtnText: { color: T.text, fontSize: 13, fontWeight: '600' },
+    colorRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
+    colorDot: { width: 32, height: 32, borderRadius: 16, marginRight: 10, marginBottom: 8 },
+    colorDotOn: { borderWidth: 3, borderColor: T.dark ? '#fff' : '#1c1c1e' },
+
+    loginBox: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 26, paddingVertical: 40 },
+    loginTitle: { color: '#fff', fontSize: 28, fontWeight: '800', marginBottom: 16, textShadowColor: 'rgba(0,0,0,0.25)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
+    setupLabel: { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 8 },
+    loginInput: { backgroundColor: T.card, borderRadius: 24, height: 50, paddingHorizontal: 18, fontSize: 16, color: T.text, ...lift, ...edge },
+    loginHint: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 8 },
+    loginErr: { color: '#fff', marginTop: 10, fontSize: 13, fontWeight: '700' },
+    loginBtn: { backgroundColor: T.accent, borderRadius: 24, height: 50, alignItems: 'center', justifyContent: 'center', marginTop: 14, ...lift },
+    loginBtnText: { color: T.onAccent, fontSize: 16, fontWeight: '700' },
+    switchText: { color: '#fff', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
+  });
+}
